@@ -1,0 +1,58 @@
+# .github/workflows/deploy.yml
+
+name: Deploy to GitHub Pages
+
+# Запускать workflow при каждом пуше в ветку 'main'
+on:
+  push:
+    branches:
+      - main
+
+# Разрешить этому workflow создавать и изменять GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Используем актуальную LTS-версию Node.js
+
+      - name: Install dependencies
+        run: npm install
+
+      # Собираем приложение, передавая ключи API как переменные окружения
+      # ${{ secrets.НАЗВАНИЕ_СЕКРЕТА }} - так мы получаем доступ к секретам
+      - name: Build
+        run: |
+          VITE_API_URL=${{ secrets.VITE_API_URL }} \
+          VITE_TMDB_API_KEY=${{ secrets.VITE_TMDB_API_KEY }} \
+          npm run build
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist' # Папка, в которую Vite собирает проект
+
+  deploy:
+    # Требуется завершение шага 'build'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
